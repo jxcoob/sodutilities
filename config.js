@@ -36,7 +36,9 @@ module.exports = {
     employmentRoles: [
       '1493706715928068227',
       '1493706473191244007',
-      '1461901063862091837',
+      '1461900200871333929',
+      '1468011914708783167',
+      '1461881803533979891',
     ],
 
     // Roles that -remove will strip from a user (and -restore will give back)
