@@ -29,8 +29,7 @@ module.exports = {
     // Role allowed to use all prefix commands (-say, -dm, -purge, etc.)
     prefixCommandRole: '1493707262014001283',
 
-    // Role removed from a user when -employ is used
-    employmentRemoveRole: '1468011914708783167',
+
 
     // Roles given to a user when -employ is used
     employmentRoles: [
