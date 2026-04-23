@@ -32,10 +32,7 @@ module.exports = {
       await target.roles.add(rolesToAdd).catch(() => {});
     }
 
-    // ── Remove role on employment ────────────────────────
-    if (target.roles.cache.has(config.roles.employmentRemoveRole)) {
-      await target.roles.remove(config.roles.employmentRemoveRole).catch(() => {});
-    }
+
 
     // ── Build and send DM embed ──────────────────────────
     const embed = new EmbedBuilder()
