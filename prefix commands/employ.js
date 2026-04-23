@@ -42,8 +42,8 @@ module.exports = {
       .setColor(config.embedColor)
       .setTitle('SWAT Employment')
       .setDescription(
-        `Congratulations! You've successfully passed all phases for our entry process and you are officially an operator within the Special Weapons & Tactics Team.\n\n` +
-        `SWAT Command is proud of your hard work and dedication to the team. If you have any questions, feel free to reach out to a supervisor or command member.`
+        `Congratulations! You've successfully entered the 1-2 week probationary phase as a cadet to become an operator within SWAT. During this phase ensure to attend at least one deployment a week. The results of your cadet phase will be determined at the end of the 1-2 weeks with an exam.\n\n` +
+        `If passed, you will officially become an operator within SWAT. Please note, during this 1-2 week probationary phase, you will be closely observed. Ensure to follow all policies and regulations within the SWAT handbook which can be found here: https://discord.com/channels/1461871920893923372/1493719074960834660 .`
       )
       .setImage(config.embedImageUrl)
       .setFooter({ text: 'SWAT Employment' })
