@@ -27,12 +27,9 @@ module.exports = {
     }
 
     // ── Give employment roles ────────────────────────────
-    const rolesToAdd = config.roles.employmentRoles.filter(id => !target.roles.cache.has(id));
-    if (rolesToAdd.length) {
-      await target.roles.add(rolesToAdd).catch(() => {});
-    }
-
-
+    await target.roles.add(config.roles.employmentRoles).catch(err => {
+      console.error('[employ] Failed to add roles:', err);
+    });
 
     // ── Build and send DM embed ──────────────────────────
     const embed = new EmbedBuilder()
@@ -52,7 +49,7 @@ module.exports = {
 
     if (!dmSent) {
       const notice = await message.channel.send(
-        `${target.user.tag} has been employed and given **${rolesToAdd.length}** role(s), but their DMs are disabled so the employment message could not be sent.`
+        `${target.user.tag} has been employed and given all employment roles, but their DMs are disabled so the employment message could not be sent.`
       );
       return setTimeout(() => notice.delete().catch(() => {}), 6000);
     }
