@@ -1,10 +1,12 @@
 const {
   SlashCommandBuilder,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  MessageFlags,
 } = require('discord.js');
 const config = require('../config.js');
 
@@ -16,6 +18,14 @@ function hasDeploymentPermission(member) {
   return config.roles.deploymentCommandRoles.some(roleId =>
     member.roles.cache.has(roleId)
   );
+}
+
+// ── Helper: build a deployment container (Components V2) ──
+function buildDeploymentContainer(text) {
+  return new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(text)
+    );
 }
 
 module.exports = {
@@ -69,17 +79,11 @@ module.exports = {
         return interaction.reply({ content: 'Deployment channel not found. Contact SWAT Command.', ephemeral: true });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setTitle('SWAT - Deployment Vote')
-        .setDescription(
-          `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
-          `**Votes Required:** ${votesRequired}\n\n` +
-          `This deployment will commence <t:${startTimestamp}:R>`
-        )
-        .setImage(config.embedImageUrl)
-        .setFooter({ text: 'SWAT Deployment Vote' })
-        .setTimestamp();
+      const voteText =
+        `## SWAT — Deployment Vote\n` +
+        `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
+        `**Votes Required:** ${votesRequired}\n\n` +
+        `This deployment will commence <t:${startTimestamp}:R>`;
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -92,10 +96,12 @@ module.exports = {
           .setStyle(ButtonStyle.Secondary),
       );
 
+      const voteContainer = buildDeploymentContainer(voteText);
+      voteContainer.spliceComponents(0, 0, new TextDisplayBuilder().setContent(`<@&${config.roles.deploymentPingRole}>`));
+
       const message = await channel.send({
-        content: `<@&${config.roles.deploymentPingRole}>`,
-        embeds: [embed],
-        components: [row],
+        components: [voteContainer, row],
+        flags: MessageFlags.IsComponentsV2,
       });
 
       activeVotes.set(message.id, {
@@ -126,7 +132,6 @@ module.exports = {
                 .setStyle(ButtonStyle.Danger),
             );
 
-            // fetchReply: true so we get back the ephemeral message and can attach a collector
             const removeReply = await i.reply({
               content: `You've already marked yourself attending to this deployment, would you like to remove your attendance?`,
               components: [removeRow],
@@ -134,7 +139,6 @@ module.exports = {
               fetchReply: true,
             });
 
-            // Collect the remove-confirm click on the ephemeral message
             const removeCollector = removeReply.createMessageComponentCollector({
               componentType: ComponentType.Button,
               time: 60_000,
@@ -157,15 +161,17 @@ module.exports = {
 
               voteDataNow.attendees.delete(i.user.id);
 
-              const updatedEmbed = EmbedBuilder.from(message.embeds[0])
-                .setDescription(
-                  `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
-                  `**Votes Required:** ${voteDataNow.votesRequired}\n` +
-                  `**Current Votes:** ${voteDataNow.attendees.size}/${voteDataNow.votesRequired}\n\n` +
-                  `This deployment will commence <t:${voteDataNow.startTimestamp}:R>`
-                );
+              const updatedText =
+                `## SWAT — Deployment Vote\n` +
+                `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
+                `**Votes Required:** ${voteDataNow.votesRequired}\n` +
+                `**Current Votes:** ${voteDataNow.attendees.size}/${voteDataNow.votesRequired}\n\n` +
+                `This deployment will commence <t:${voteDataNow.startTimestamp}:R>`;
 
-              await message.edit({ embeds: [updatedEmbed] }).catch(() => {});
+              await message.edit({
+                components: [buildDeploymentContainer(updatedText), row],
+                flags: MessageFlags.IsComponentsV2,
+              }).catch(() => {});
               await removeInteraction.update({ content: 'Your attendance has been removed.', components: [] });
             });
 
@@ -179,17 +185,19 @@ module.exports = {
           }
 
           voteData.attendees.add(i.user.id);
-          await i.reply({ content: 'Attendance succesfully marked.', ephemeral: true });
+          await i.reply({ content: 'Attendance successfully marked.', ephemeral: true });
 
-          const updatedEmbed = EmbedBuilder.from(message.embeds[0])
-            .setDescription(
-              `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
-              `**Votes Required:** ${voteData.votesRequired}\n` +
-              `**Current Votes:** ${voteData.attendees.size}/${voteData.votesRequired}\n\n` +
-              `This deployment will commence <t:${voteData.startTimestamp}:R>`
-            );
+          const updatedText =
+            `## SWAT — Deployment Vote\n` +
+            `A deployment vote has been initiated. All operators that are available to attend may mark their attendance below. Failure to join the deployment after marking your attendance will result in disciplinary action.\n\n` +
+            `**Votes Required:** ${voteData.votesRequired}\n` +
+            `**Current Votes:** ${voteData.attendees.size}/${voteData.votesRequired}\n\n` +
+            `This deployment will commence <t:${voteData.startTimestamp}:R>`;
 
-          await message.edit({ embeds: [updatedEmbed] });
+          await message.edit({
+            components: [buildDeploymentContainer(updatedText), row],
+            flags: MessageFlags.IsComponentsV2,
+          });
           return;
         }
 
@@ -218,17 +226,14 @@ module.exports = {
         if (voteData.attendees.size >= voteData.votesRequired) {
           await triggerDeploymentStart(interaction.guild, voteData, channel, message);
         } else {
-          const cancelEmbed = new EmbedBuilder()
-            .setColor(config.embedColor)
-            .setTitle('SWAT - Deployment Cancelled')
-            .setDescription(
-              `An insufficient amount of votes for the previous deployment has caused it to be cancelled. You will be notified for the next deployment vote when/if started.`
-            )
-            .setImage(config.embedImageUrl)
-            .setFooter({ text: 'SWAT Deployment Cancelled' })
-            .setTimestamp();
+          const cancelText =
+            `## SWAT — Deployment Cancelled\n` +
+            `An insufficient amount of votes for the previous deployment has caused it to be cancelled. You will be notified for the next deployment vote when/if started.`;
 
-          await channel.send({ embeds: [cancelEmbed] });
+          await channel.send({
+            components: [buildDeploymentContainer(cancelText)],
+            flags: MessageFlags.IsComponentsV2,
+          });
         }
       });
 
@@ -272,17 +277,14 @@ module.exports = {
         if (fetched.size < 100) break;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setTitle('SWAT - Deployment Ended')
-        .setDescription(
-          `The recent deployment has now concluded. If you missed this one, don't worry, deployments are hosted regularly throughout the week and you'll be notified of the next one. Thank you to all operators who attended the recent deployment.`
-        )
-        .setImage(config.embedImageUrl)
-        .setFooter({ text: 'SWAT Deployment Ended' })
-        .setTimestamp();
+      const endText =
+        `## SWAT — Deployment Ended\n` +
+        `The recent deployment has now concluded. If you missed this one, don't worry, deployments are hosted regularly throughout the week and you'll be notified of the next one. Thank you to all operators who attended the recent deployment.`;
 
-      await channel.send({ embeds: [embed] });
+      await channel.send({
+        components: [buildDeploymentContainer(endText)],
+        flags: MessageFlags.IsComponentsV2,
+      });
       await interaction.editReply({ content: `Deployment ended.` });
     }
   },
@@ -292,19 +294,16 @@ module.exports = {
 async function triggerDeploymentStart(guild, voteData, channel, voteMessage) {
   const attendeeMentions = [...voteData.attendees].map(id => `<@${id}>`).join(' ');
 
-  const embed = new EmbedBuilder()
-    .setColor(config.embedColor)
-    .setTitle('SWAT - Deployment Started')
-    .setDescription(
-      `A deployment has now commenced. All operators who marked their attendance to the deployment vote are now required to attend. Additional operatives may join regardless if they didn't mark their attendance.\n\n` +
-      `Please make your way down to the briefing room with all gear and await further instructions from command.`
-    )
-    .setImage(config.embedImageUrl)
-    .setFooter({ text: 'SWAT Deployment Started' })
-    .setTimestamp();
+  const startText =
+    `## SWAT — Deployment Started\n` +
+    `A deployment has now commenced. All operators who marked their attendance to the deployment vote are now required to attend. Additional operatives may join regardless if they didn't mark their attendance.\n\n` +
+    `Please make your way down to the briefing room with all gear and await further instructions from command.`;
+
+  const startContainer = buildDeploymentContainer(startText);
+  startContainer.spliceComponents(0, 0, new TextDisplayBuilder().setContent(attendeeMentions));
 
   await channel.send({
-    content: `<@&${config.roles.deploymentPingRole}> ${attendeeMentions}`,
-    embeds: [embed],
+    components: [startContainer],
+    flags: MessageFlags.IsComponentsV2,
   });
 }
